@@ -16,9 +16,9 @@
         //                                                                        //
         //========================================================================//
         ctl-opt option(*srcstmt) dftactgrp(*no) ;
-
+        //* This changes done in GitHub for Testing. 
         //*----------------------------------------------------
-        //‚Input Files
+        //â€šInput Files
         //----------------------------------------------------*/
         dcl-f ANU02F   usage(*input) keyed prefix(X_);
         dcl-f ANU04GF  usage(*input) keyed prefix(Y_);
@@ -26,7 +26,7 @@
         dcl-f CTFIWA3F usage(*input) keyed ;
         dcl-f MDLHEDL1 usage(*input) keyed ;
         //*----------------------------------------------------
-        //‚Output Files
+        //â€šOutput Files
         //----------------------------------------------------*/
         dcl-f ANU05F   usage(*input : *output) keyed;
         dcl-f STCREQ   usage(*output) keyed;
@@ -34,7 +34,7 @@
         dcl-f STCPDFF  usage(*output) keyed;
 
         //*----------------------------------------------------
-        //‚Work fields
+        //â€šWork fields
         //----------------------------------------------------*/
         dcl-s W_USR  char(10) inz(*user);
 
@@ -46,12 +46,12 @@
         dcl-s TOT_CHG Packed(15:2);
         dcl-s TOT_PTM Packed(15:2);
 
-        //‚Retrieve Job Name
+        //â€šRetrieve Job Name
         dcl-ds *n PSDS;
           jobName char(10) pos(244);
         end-ds;
 
-        //‚Prototype: GKEYS URN Retrieval
+        //â€šPrototype: GKEYS URN Retrieval
         dcl-pr CTX4XFR extpgm('CTX4XFR');
            W0RTN   char(7);
            LB001   char(8);
@@ -64,7 +64,7 @@
 
         dcl-s URN     packed(12:0);
 
-        //‚Procedure interface (simulates *ENTRY PLIST)
+        //â€šProcedure interface (simulates *ENTRY PLIST)
         dcl-pi *n;
           pACC    char(11);
           pSTR    char(08);
@@ -72,13 +72,13 @@
           pPRV    char(08);
           pURN    char(15);
         end-pi;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
             ExSr  MAIN;
 
             ExSr  EXIT;
-        //‚*-----------------------------------------------------------*
-        //‚* MAIN - Main Processing                                    *
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
+        //â€š* MAIN - Main Processing                                    *
+        //â€š*-----------------------------------------------------------*
         BegSR  Main;
 
           W_ACC  = pACC;
@@ -91,11 +91,11 @@
           ExSr  COSTNCHG_DET;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
         BegSR  BUILD_ANU05F;
 
         //*----------------------------------------------------
-        //‚Prime read
+        //â€šPrime read
         //----------------------------------------------------*/
           setll *loval ANU02F;
           read ANU02F;
@@ -104,7 +104,7 @@
 
             clear ANU05FR;
 
-        //*‚--------- from ANU02F ---------
+        //*â€š--------- from ANU02F ---------
             G1HYC3 = X_A8HYC3;
             G1STRD = W_STR;
             G1ENDD = W_END;
@@ -116,7 +116,7 @@
             E      = X_E;
             F      = X_F;
 
-            //*‚Audit trail */
+            //*â€šAudit trail */
             M6       = X_M6;
             G1KAV2   = X_A8KAV2;
             G1KAV201 = X_A8KAV201;
@@ -137,7 +137,7 @@
             G1KEV2   = X_A8KEV2;
             G1KEV201 = X_A8KEV201;
 
-            //*‚Fees */
+            //*â€šFees */
             M5       = X_M5;
             TOTFEE   = X_A8TFEE;
             TOTFEE01 = X_A8TFEE01;
@@ -146,7 +146,7 @@
             TRADING  = X_A8TRAD;
             SLIPAGE  = X_A8SLIP;
 
-        //*‚--------- LEFT JOIN to ANU04GF --------- */
+        //*â€š--------- LEFT JOIN to ANU04GF --------- */
             Chain X_A8HYC3 ANU04GF;
             if %found(ANU04GF);
               ADI01 = Y_ADI01;
@@ -166,7 +166,7 @@
               OTH01 = 0;
             endif;
 
-        //*‚--------- LEFT JOIN to CTFIWA3F -------- */
+        //*â€š--------- LEFT JOIN to CTFIWA3F -------- */
             Chain X_A8HYC3 CTFIWA3F;
             if %found(CTFIWA3F);
               CCMTT2 = WAMTT2 ;
@@ -202,10 +202,10 @@
           enddo;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
         BegSR  COSTNCHG_REQ;
 
-        //‚GKEYS URN Retrieval
+        //â€šGKEYS URN Retrieval
            LB001 = 'STCHED';
            LB002 = 0 ;
            CTX4XFR(W0RTN : LB001 : LB002);
@@ -215,7 +215,7 @@
              pURN  = W_URN;
            endif;
 
-        //‚Write Cost and charges request detail
+        //â€šWrite Cost and charges request detail
            Clear STCRFMT;
 
            STCURN = URN;
@@ -231,17 +231,17 @@
            write STCRFMT;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
         BegSR  COSTNCHG_DET;
         //*----------------------------------------------------
-        //‚Prime read
+        //â€šPrime read
         //----------------------------------------------------*/
           setll *loval ANU05F;
           read ANU05F;
 
           dow not %eof(ANU05F);
 
-         //‚Write Cost and charges detail
+         //â€šWrite Cost and charges detail
             Clear CNCHFMT;
 
             CNCURN   = URN;
@@ -304,7 +304,7 @@
           enddo;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
         BegSR  COSTNCHG_PDF;
 
             Chain G1HYC3 CTLFCPL1;
@@ -414,7 +414,7 @@
             write STCPDFFR;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
         BegSR  CALC_CHG_PTM;
 
           EXEC SQL
@@ -439,14 +439,14 @@
                AND AJ.AJE4S4 <> 'H';
 
         EndSr;
-        //‚*-----------------------------------------------------------*
-        //‚* EXIT - Normal End Of Program                              *
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
+        //â€š* EXIT - Normal End Of Program                              *
+        //â€š*-----------------------------------------------------------*
         BegSr  Exit;
-         //‚Leave the program
+         //â€šLeave the program
           *inlr = *on;
           return;
 
         EndSr;
-        //‚*-----------------------------------------------------------*
+        //â€š*-----------------------------------------------------------*
       *=========================================================================
