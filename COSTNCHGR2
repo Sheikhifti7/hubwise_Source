@@ -1,0 +1,452 @@
+     **free
+
+        //========================================================================//
+        // Date         :  07-03-2026                                             //
+        // Author       :  Iftikhar Ahmed                                         //
+        // Ref          :  HWCS-2628                                              //
+        // Description  :  Back Office Program to produce On-Demand Account       //
+        //                 Costs and Charges data final extract.                  //
+        //------------------------------------------------------------------------//
+        // C H A N G E    H I S T O R Y                                           //
+        //------------------------------------------------------------------------//
+        // Date         :  27-04-2026                                             //
+        // Author       :  Iftikhar Ahmed                                         //
+        // Ref          :  HWCS-2847                                              //
+        // Description  :  Costs and Charges data final extract Enquiry Changes   //
+        //                                                                        //
+        //========================================================================//
+        ctl-opt option(*srcstmt) dftactgrp(*no) ;
+
+        //*----------------------------------------------------
+        //‚Input Files
+        //----------------------------------------------------*/
+        dcl-f ANU02F   usage(*input) keyed prefix(X_);
+        dcl-f ANU04GF  usage(*input) keyed prefix(Y_);
+        dcl-f CTLFCPL1 usage(*input) keyed ;
+        dcl-f CTFIWA3F usage(*input) keyed ;
+        dcl-f MDLHEDL1 usage(*input) keyed ;
+        //*----------------------------------------------------
+        //‚Output Files
+        //----------------------------------------------------*/
+        dcl-f ANU05F   usage(*input : *output) keyed;
+        dcl-f STCREQ   usage(*output) keyed;
+        dcl-f STCHED   usage(*output) keyed;
+        dcl-f STCPDFF  usage(*output) keyed;
+
+        //*----------------------------------------------------
+        //‚Work fields
+        //----------------------------------------------------*/
+        dcl-s W_USR  char(10) inz(*user);
+
+        dcl-s W_ACC  char(11);
+        dcl-s W_STR  packed(08:0);
+        dcl-s W_END  packed(08:0);
+        dcl-s W_PRV  packed(08:0);
+        dcl-s W_URN  char(15);
+        dcl-s TOT_CHG Packed(15:2);
+        dcl-s TOT_PTM Packed(15:2);
+
+        //‚Retrieve Job Name
+        dcl-ds *n PSDS;
+          jobName char(10) pos(244);
+        end-ds;
+
+        //‚Prototype: GKEYS URN Retrieval
+        dcl-pr CTX4XFR extpgm('CTX4XFR');
+           W0RTN   char(7);
+           LB001   char(8);
+           LB002   packed(12:0);
+        end-pr;
+
+        dcl-s W0RTN   char(7);
+        dcl-s LB001   char(8);
+        dcl-s LB002   packed(12:0);
+
+        dcl-s URN     packed(12:0);
+
+        //‚Procedure interface (simulates *ENTRY PLIST)
+        dcl-pi *n;
+          pACC    char(11);
+          pSTR    char(08);
+          pEND    char(08);
+          pPRV    char(08);
+          pURN    char(15);
+        end-pi;
+        //‚*-----------------------------------------------------------*
+            ExSr  MAIN;
+
+            ExSr  EXIT;
+        //‚*-----------------------------------------------------------*
+        //‚* MAIN - Main Processing                                    *
+        //‚*-----------------------------------------------------------*
+        BegSR  Main;
+
+          W_ACC  = pACC;
+          W_STR  = %Dec(pSTR:08:0) ;
+          W_END  = %Dec(pEND:08:0) ;
+          W_PRV  = %Dec(pPRV:08:0) ;
+
+          ExSr  BUILD_ANU05F;
+          ExSr  COSTNCHG_REQ;
+          ExSr  COSTNCHG_DET;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  BUILD_ANU05F;
+
+        //*----------------------------------------------------
+        //‚Prime read
+        //----------------------------------------------------*/
+          setll *loval ANU02F;
+          read ANU02F;
+
+          dow not %eof(ANU02F);
+
+            clear ANU05FR;
+
+        //*‚--------- from ANU02F ---------
+            G1HYC3 = X_A8HYC3;
+            G1STRD = W_STR;
+            G1ENDD = W_END;
+            G1PRVD = W_PRV;
+            A      = X_A;
+            B      = X_B;
+            C      = X_C;
+            D      = X_D;
+            E      = X_E;
+            F      = X_F;
+
+            //*‚Audit trail */
+            M6       = X_M6;
+            G1KAV2   = X_A8KAV2;
+            G1KAV201 = X_A8KAV201;
+
+            M1       = X_M1;
+            G1KBV2   = X_A8KBV2;
+            G1KBV201 = X_A8KBV201;
+
+            M2       = X_M2;
+            G1KCV2   = X_A8KCV2;
+            G1KCV201 = X_A8KCV201;
+
+            M3       = X_M3;
+            G1KDV2   = X_A8KDV2;
+            G1KDV201 = X_A8KDV201;
+
+            M4       = X_M4;
+            G1KEV2   = X_A8KEV2;
+            G1KEV201 = X_A8KEV201;
+
+            //*‚Fees */
+            M5       = X_M5;
+            TOTFEE   = X_A8TFEE;
+            TOTFEE01 = X_A8TFEE01;
+
+            OCF      = X_A8OCF;
+            TRADING  = X_A8TRAD;
+            SLIPAGE  = X_A8SLIP;
+
+        //*‚--------- LEFT JOIN to ANU04GF --------- */
+            Chain X_A8HYC3 ANU04GF;
+            if %found(ANU04GF);
+              ADI01 = Y_ADI01;
+              ADA01 = Y_ADA01;
+              PLT01 = Y_PLT01;
+              DFM01 = Y_DFM01;
+              THD01 = Y_THD01;
+              PST01 = Y_PST01;
+              OTH01 = Y_OTH01;
+            else;
+              ADI01 = 0;
+              ADA01 = 0;
+              PLT01 = 0;
+              DFM01 = 0;
+              THD01 = 0;
+              PST01 = 0;
+              OTH01 = 0;
+            endif;
+
+        //*‚--------- LEFT JOIN to CTFIWA3F -------- */
+            Chain X_A8HYC3 CTFIWA3F;
+            if %found(CTFIWA3F);
+              CCMTT2 = WAMTT2 ;
+              CCUFCD = WAUFCD ;
+              CCAVGS = WAAVGS ;
+              CCAVGC = WAAVGC ;
+              CCTOT  = WATOT  ;
+              CCCNT  = WACNT  ;
+              CCDTFR = WADTFR ;
+              CCDTTO = WADTTO ;
+            else;
+              CCMTT2 = *Blanks;
+              CCUFCD = *Blanks;
+              CCAVGS = 0;
+              CCAVGC = 0;
+              CCTOT  = 0;
+              CCCNT  = 0;
+              CCDTFR = 0;
+              CCDTTO = 0;
+            endif;
+            ExSr  CALC_CHG_PTM;
+            CCTCHG = TOT_CHG;
+            CCTPTL = TOT_PTM;
+
+            CCBCRU = W_USR ;
+            CCBCRJ = jobName;
+            CCBCRX = %DEC(%DATE());
+            CCBCRT = %Dec(%Time():*ISO);
+
+            write ANU05FR;
+
+            read ANU02F;
+          enddo;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  COSTNCHG_REQ;
+
+        //‚GKEYS URN Retrieval
+           LB001 = 'STCHED';
+           LB002 = 0 ;
+           CTX4XFR(W0RTN : LB001 : LB002);
+           if LB002 > 0;
+             URN = LB002 ;
+             W_URN = %char(URN) ;
+             pURN  = W_URN;
+           endif;
+
+        //‚Write Cost and charges request detail
+           Clear STCRFMT;
+
+           STCURN = URN;
+           STCACC = W_ACC;
+           STCSDT = W_STR;
+           STCEDT = W_END;
+           STCPDT = W_PRV;
+           STCRDT = %DEC(%DATE());
+           STCRTM = %Dec(%Time():*ISO);
+           STCUSR = W_USR ;
+           STBCRJ = jobName;
+
+           write STCRFMT;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  COSTNCHG_DET;
+        //*----------------------------------------------------
+        //‚Prime read
+        //----------------------------------------------------*/
+          setll *loval ANU05F;
+          read ANU05F;
+
+          dow not %eof(ANU05F);
+
+         //‚Write Cost and charges detail
+            Clear CNCHFMT;
+
+            CNCURN   = URN;
+            CNCACC   = G1HYC3;
+            CNCSTV   = A;
+            CNCTCS   = B;
+            CNCEVL   = C;
+            CNCATV   = D;
+            CNCTAF   = E;
+            CNCGMV   = F;
+            CNCTVM   = M6;
+            CNKAV2   = G1KAV2;
+            CNKAV201 = G1KAV201;
+            CNCMIC   = M1;
+            CNKBV2   = G1KBV2;
+            CNKBV201 = G1KBV201;
+            CNCMOC   = M2;
+            CNKCV2   = G1KCV2;
+            CNKCV201 = G1KCV201;
+            CNCMIS   = M3;
+            CNKDV2   = G1KDV2;
+            CNKDV201 = G1KDV201;
+            CNCMOS   = M4;
+            CNKEV2   = G1KEV2;
+            CNKEV201 = G1KEV201;
+            CNCMIF   = M5;
+            CNCTFE   = TOTFEE;
+            CNCTTF   = TOTFEE01;
+            CNCOCF   = OCF;
+            CNCTRAD  = TRADING;
+            CNCSLIP  = SLIPAGE;
+            CNADI01  = ADI01;
+            CNADA01  = ADA01;
+            CNPLT01  = PLT01;
+            CNDFM01  = DFM01;
+            CNTHD01  = THD01;
+            CNPST01  = PST01;
+            CNOTH01  = OTH01;
+            CNMTT2   = CCMTT2;
+            CNUFCD   = CCUFCD;
+            CNAVGS   = CCAVGS;
+            CNAVGC   = CCAVGC;
+            CNTOT    = CCTOT;
+            CNCNT    = CCCNT;
+            CNDTFR   = CCDTFR;
+            CNDTTO   = CCDTTO;
+            CNTCHG   = CCTCHG;
+            CNTPTL   = CCTPTL;
+
+            CNBCRU   = CCBCRU;
+            CNBCRJ   = CCBCRJ;
+            CNBCRX   = CCBCRX;
+            CNBCRT   = CCBCRT;
+
+            write CNCHFMT;
+
+            Exsr COSTNCHG_PDF;
+
+            read ANU05F;
+          enddo;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  COSTNCHG_PDF;
+
+            Chain G1HYC3 CTLFCPL1;
+
+            Clear STCPDFFR;
+
+            PDFURN  = URN;
+            PDA5C2  = G1HYC3;
+            PDV3CD  = LFV3CD;
+            Chain (LFUFCD:LFWOCD:LFFFDT) MDLHEDL1;
+            If %found(MDLHEDL1);
+              PDPRTF = KUI8T2;
+            else;
+              PDPRTF = *Blanks;
+            endif;
+            PDSLIP  = SLIPAGE / 2;
+            PDMIFE  = M5 / 2;
+            PDTCHG  = CCTCHG;
+            PDTPTL  = CCTPTL;
+            PDTFMS  = E - PDSLIP - PDMIFE + PDTCHG + PDTPTL;
+            PDNETV  = D;
+            PDGVAL  = PDNETV - PDTFMS;
+            PDSVAL  = A;
+            PDEVAL  = C;
+            PDDIFF  = PDGVAL - PDNETV;
+            PDWAVG  = CCTOT;
+            if PDWAVG > 0 ;
+              PDGPOI  = (PDGVAL / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDGPOI = (PDGVAL / PDSVAL) * 100;
+              on-error ;
+                PDGPOI = 0 ;
+              endmon ;
+            endif;
+            if PDWAVG > 0 ;
+              PDNPOI  = (PDNETV / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDNPOI = (PDNETV / PDSVAL) * 100;
+              on-error ;
+                PDNPOI = 0 ;
+              endmon ;
+            endif;
+            PDCECI  = PDGPOI - PDNPOI;
+            PDFCHG  = OCF;
+            if PDWAVG > 0 ;
+              PDFCHP  = (PDFCHG / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDFCHP = (PDFCHG / PDSVAL) * 100;
+              on-error ;
+                PDFCHP = 0 ;
+              endmon ;
+            endif;
+            PDTCBS  = PDSLIP + PDTCHG + PDTPTL;
+            PDTCFT  = TRADING;
+            if PDWAVG > 0 ;
+              PDTCFP  = (PDTCFT / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDTCFP = (PDTCFT / PDSVAL) * 100;
+              on-error ;
+                PDTCFP = 0 ;
+              endmon ;
+            endif;
+            PDADIV  = ADI01;
+            PDADAV  = ADA01;
+            if PDWAVG > 0 ;
+              PDADAP  = (PDADAV / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDADAP = (PDADAV / PDSVAL) * 100;
+              on-error ;
+                PDADAP = 0 ;
+              endmon ;
+            endif;
+            PDDFMC  = DFM01;
+            if PDWAVG > 0 ;
+              PDDFMP  = (PDDFMC / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDDFMP = (PDDFMC / PDSVAL) * 100;
+              on-error ;
+                PDDFMP = 0 ;
+              endmon ;
+            endif;
+            PDPSTV  = PST01;
+            PDPLTV  = PLT01;
+            if PDWAVG > 0 ;
+              PDPLTP  = (PDPLTV / PDWAVG) * 100;
+            else;
+              monitor ;
+                PDPLTP = (PDPLTV / PDSVAL) * 100;
+              on-error ;
+                PDPLTP = 0 ;
+              endmon ;
+            endif;
+            PDTHDV  = THD01;
+            PDOTHV  = OTH01;
+
+            PDBCRU  = W_USR ;
+            PDBCRJ  = jobName;
+            PDBCRX  = %DEC(%DATE());
+            PDBCRT  = %Dec(%Time():*ISO);
+
+            write STCPDFFR;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  CALC_CHG_PTM;
+
+          EXEC SQL
+             SELECT
+                COALESCE(SUM(RK.RKXVVA), 0),
+                COALESCE(SUM(DK.DKHYV2), 0)
+             INTO
+                :TOT_CHG,
+                :TOT_PTM
+             FROM STAJCPL4 AJ
+
+             LEFT JOIN CTRKCPL1 RK
+                   ON RK.RKVDC2 = AJ.AJJTT4
+
+             LEFT JOIN CTDKCPL1 DK
+                   ON DK.DKVDC2 = AJ.AJJTT4
+
+             WHERE AJ.AJK3C3 = :X_A8HYC3
+               AND AJ.AJBHDT BETWEEN :W_STR AND :W_END
+               AND AJ.AJQSS4 = 'URN'
+               AND AJ.AJRBC3 = 'CONTPOST'
+               AND AJ.AJE4S4 <> 'H';
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        //‚* EXIT - Normal End Of Program                              *
+        //‚*-----------------------------------------------------------*
+        BegSr  Exit;
+         //‚Leave the program
+          *inlr = *on;
+          return;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+      *=========================================================================
