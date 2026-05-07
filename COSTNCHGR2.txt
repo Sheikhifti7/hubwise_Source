@@ -1,0 +1,269 @@
+     **free
+
+        //========================================================================//
+        // Date         :  07-03-2026                                             //
+        // Author       :  Iftikhar Ahmed                                         //
+        // Ref          :  HWCS-2628                                              //
+        // Description  :  Back Office Program to produce On-Demand Account       //
+        //                 Costs and Charges data final extract.                  //
+        //------------------------------------------------------------------------//
+        // C H A N G E    H I S T O R Y                                           //
+        //------------------------------------------------------------------------//
+        // Date         :                                                         //
+        // Author/Ref   :                                                         //
+        // Description  :                                                         //
+        //                                                                        //
+        //========================================================================//
+        ctl-opt option(*srcstmt) dftactgrp(*no) ;
+
+        //*----------------------------------------------------
+        //‚Input Files
+        //----------------------------------------------------*/
+        dcl-f ANU02F   usage(*input) keyed prefix(X_);
+        dcl-f ANU04GF  usage(*input) keyed prefix(Y_);
+        //*----------------------------------------------------
+        //‚Output Files
+        //----------------------------------------------------*/
+        dcl-f ANU05F   usage(*input : *output) keyed;
+        dcl-f STCREQ   usage(*output) keyed;
+        dcl-f STCHED   usage(*output) keyed;
+
+        //*----------------------------------------------------
+        //‚Work fields
+        //----------------------------------------------------*/
+        dcl-s W_USR  char(10) inz(*user);
+
+        dcl-s W_ACC  char(11);
+        dcl-s W_STR  packed(08:0);
+        dcl-s W_END  packed(08:0);
+        dcl-s W_PRV  packed(08:0);
+        dcl-s W_URN  char(15);
+
+        //‚Retrieve Job Name
+        dcl-ds *n PSDS;
+          jobName char(10) pos(244);
+        end-ds;
+
+        //‚Prototype: GKEYS URN Retrieval
+        dcl-pr CTX4XFR extpgm('CTX4XFR');
+           W0RTN   char(7);
+           LB001   char(8);
+           LB002   packed(12:0);
+        end-pr;
+
+        dcl-s W0RTN   char(7);
+        dcl-s LB001   char(8);
+        dcl-s LB002   packed(12:0);
+
+        dcl-s URN     packed(12:0);
+
+        //‚Procedure interface (simulates *ENTRY PLIST)
+        dcl-pi *n;
+          pACC    char(11);
+          pSTR    char(08);
+          pEND    char(08);
+          pPRV    char(08);
+          pURN    char(15);
+        end-pi;
+        //‚*-----------------------------------------------------------*
+            ExSr  MAIN;
+
+            ExSr  EXIT;
+        //‚*-----------------------------------------------------------*
+        //‚* MAIN - Main Processing                                    *
+        //‚*-----------------------------------------------------------*
+        BegSR  Main;
+
+          W_ACC  = pACC;
+          W_STR  = %Dec(pSTR:08:0) ;
+          W_END  = %Dec(pEND:08:0) ;
+          W_PRV  = %Dec(pPRV:08:0) ;
+
+          ExSr  BUILD_ANU05F;
+          ExSr  COSTNCHG_REQ;
+          ExSr  COSTNCHG_DET;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  BUILD_ANU05F;
+
+        //*----------------------------------------------------
+        //‚Prime read
+        //----------------------------------------------------*/
+          setll *loval ANU02F;
+          read ANU02F;
+
+          dow not %eof(ANU02F);
+
+            clear ANU05FR;
+
+        //*‚--------- from ANU02F ---------
+            G1HYC3 = X_A8HYC3;
+            A      = X_A;
+            B      = X_B;
+            C      = X_C;
+            D      = X_D;
+            E      = X_E;
+            F      = X_F;
+
+            //*‚Audit trail */
+            M6       = X_M6;
+            G1KAV2   = X_A8KAV2;
+            G1KAV201 = X_A8KAV201;
+
+            M1       = X_M1;
+            G1KBV2   = X_A8KBV2;
+            G1KBV201 = X_A8KBV201;
+
+            M2       = X_M2;
+            G1KCV2   = X_A8KCV2;
+            G1KCV201 = X_A8KCV201;
+
+            M3       = X_M3;
+            G1KDV2   = X_A8KDV2;
+            G1KDV201 = X_A8KDV201;
+
+            M4       = X_M4;
+            G1KEV2   = X_A8KEV2;
+            G1KEV201 = X_A8KEV201;
+
+            //*‚Fees */
+            M5       = X_M5;
+            TOTFEE   = X_A8TFEE;
+            TOTFEE01 = X_A8TFEE01;
+
+            OCF      = X_A8OCF;
+            TRADING  = X_A8TRAD;
+            SLIPAGE  = X_A8SLIP;
+
+        //*‚--------- LEFT JOIN to ANU04GF --------- */
+            Chain X_A8HYC3 ANU04GF;
+            if %found(ANU04GF);
+              ADI01 = Y_ADI01;
+              ADA01 = Y_ADA01;
+              PLT01 = Y_PLT01;
+              DFM01 = Y_DFM01;
+              THD01 = Y_THD01;
+              PST01 = Y_PST01;
+              OTH01 = Y_OTH01;
+            else;
+              ADI01 = 0;
+              ADA01 = 0;
+              PLT01 = 0;
+              DFM01 = 0;
+              THD01 = 0;
+              PST01 = 0;
+              OTH01 = 0;
+            endif;
+
+            CCBCRU = W_USR ;
+            CCBCRJ = jobName;
+            CCBCRX = %DEC(%DATE());
+            CCBCRT = %Dec(%Time():*ISO);
+
+            write ANU05FR;
+
+            read ANU02F;
+          enddo;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  COSTNCHG_REQ;
+
+        //‚GKEYS URN Retrieval
+           LB001 = 'STCHED';
+           LB002 = 0 ;
+           CTX4XFR(W0RTN : LB001 : LB002);
+           if LB002 > 0;
+             URN = LB002 ;
+             W_URN = %char(URN) ;
+             pURN  = W_URN;
+           endif;
+
+        //‚Write Cost and charges request detail
+           Clear STCRFMT;
+
+           STCURN = URN;
+           STCACC = W_ACC;
+           STCSDT = W_STR;
+           STCEDT = W_END;
+           STCPDT = W_PRV;
+           STCRDT = %DEC(%DATE());
+           STCRTM = %Dec(%Time():*ISO);
+           STCUSR = W_USR ;
+           STBCRJ = jobName;
+
+           write STCRFMT;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        BegSR  COSTNCHG_DET;
+        //*----------------------------------------------------
+        //‚Prime read
+        //----------------------------------------------------*/
+          setll *loval ANU05F;
+          read ANU05F;
+
+          dow not %eof(ANU05F);
+
+         //‚Write Cost and charges detail
+            Clear CNCHFMT;
+
+            CNCURN   = URN;
+            CNCACC   = G1HYC3;
+            CNCSTV   = A;
+            CNCTCS   = B;
+            CNCEVL   = C;
+            CNCATV   = D;
+            CNCTAF   = E;
+            CNCGMV   = F;
+            CNCTVM   = M6;
+            CNKAV2   = G1KAV2;
+            CNKAV201 = G1KAV201;
+            CNCMIC   = M1;
+            CNKBV2   = G1KBV2;
+            CNKBV201 = G1KBV201;
+            CNCMOC   = M2;
+            CNKCV2   = G1KCV2;
+            CNKCV201 = G1KCV201;
+            CNCMIS   = M3;
+            CNKDV2   = G1KDV2;
+            CNKDV201 = G1KDV201;
+            CNCMOS   = M4;
+            CNKEV2   = G1KEV2;
+            CNKEV201 = G1KEV201;
+            CNCMIF   = M5;
+            CNCTFE   = TOTFEE;
+            CNCTTF   = TOTFEE01;
+            CNCOCF   = OCF;
+            CNCTRAD  = TRADING;
+            CNCSLIP  = SLIPAGE;
+            CNADI01  = ADI01;
+            CNADA01  = ADA01;
+            CNPLT01  = PLT01;
+            CNDFM01  = DFM01;
+            CNTHD01  = THD01;
+            CNPST01  = PST01;
+            CNOTH01  = OTH01;
+            CNBCRU   = CCBCRU;
+            CNBCRJ   = CCBCRJ;
+            CNBCRX   = CCBCRX;
+            CNBCRT   = CCBCRT;
+
+            write CNCHFMT;
+
+            read ANU05F;
+          enddo;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+        //‚* EXIT - Normal End Of Program                              *
+        //‚*-----------------------------------------------------------*
+        BegSr  Exit;
+         //‚Leave the program
+          *inlr = *on;
+          return;
+
+        EndSr;
+        //‚*-----------------------------------------------------------*
+      *=========================================================================
